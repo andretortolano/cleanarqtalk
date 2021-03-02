@@ -3,7 +3,6 @@ package com.andretortolano.sample_clean_arq.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.andretortolano.sample_clean_arq.api.*
 import com.andretortolano.sample_clean_arq.interactor.GetProductListUseCase
 import com.andretortolano.sample_clean_arq.interactor.GetUserUseCase
 import com.andretortolano.sample_clean_arq.interactor.ProductEntity
@@ -15,7 +14,7 @@ import kotlinx.coroutines.launch
 class MainViewModel(
     private val getUserUseCase: GetUserUseCase,
     private val getProductListUseCase: GetProductListUseCase
-): ViewModel() {
+) : ViewModel() {
 
     sealed class UserViewState {
         data class Success(val userEntity: UserEntity) : UserViewState()
@@ -40,68 +39,46 @@ class MainViewModel(
 
     val productListState: LiveData<ProductListViewState> = _productListState
 
-    private var userEntity: UserEntity? = null
-
-    fun fetchUser(extraId: Int) {
+    fun onCreate(userId: Int) {
         GlobalScope.launch(Dispatchers.Main) {
             _userState.value = UserViewState.Loading
+            _productListState.value = ProductListViewState.Loading
 
-            try {
-                val body = GetUserBody(extraId)
-                val result = getUserUseCase.invoke(body)
-
-                userEntity = result.toUserEntity().also {
-                    _userState.value = UserViewState.Success(it)
-                }
-            } catch (httpException: HttpException) {
-                if(httpException.statusCode == 404) {
-                    _userState.value = UserViewState.NotFoundError
-                } else {
-                    _userState.value = UserViewState.OtherError
-                }
-            } catch (networkException: NetworkException) {
-                _userState.value = UserViewState.NoInternetError
-            }
+            handleGetUserUseCase(getUserUseCase(GetUserUseCase.Request(userId)))
         }
     }
 
-    fun fetchProducts() {
-        GlobalScope.launch(Dispatchers.Main) {
-            _productListState.value = ProductListViewState.Loading
-            try {
-                val result = getProductListUseCase.invoke()
-                val productEntityList = result.toProductEntityList()
-                val sortedList = sortCandyFirstIfUserEatsCandy(productEntityList)
-                _productListState.value = ProductListViewState.Success(sortedList)
-            } catch (httpException: HttpException) {
+    private suspend fun handleGetUserUseCase(result: GetUserUseCase.Result) {
+        when (result) {
+            GetUserUseCase.Result.Error -> {
+                _userState.value = UserViewState.OtherError
                 _productListState.value = ProductListViewState.OtherError
-            } catch (networkException: NetworkException) {
+            }
+            GetUserUseCase.Result.NoInternetError -> {
+                _userState.value = UserViewState.NoInternetError
                 _productListState.value = ProductListViewState.NoInternetError
             }
+            GetUserUseCase.Result.NotFoundError -> {
+                _userState.value = UserViewState.NotFoundError
+                _productListState.value = ProductListViewState.OtherError
+            }
+            is GetUserUseCase.Result.Success -> {
+                handleGetProductListUseCase(getProductListUseCase(GetProductListUseCase.Request(result.userEntity.eatsCandy)))
+            }
         }
     }
 
-    private fun sortCandyFirstIfUserEatsCandy(productEntityList: List<ProductEntity>): List<ProductEntity> {
-        return if(userEntity != null && userEntity!!.eatsCandy) {
-            productEntityList.sortedByDescending { it.type == ProductEntity.ProductType.CANDY }
-        } else {
-            productEntityList
-        }
-    }
-
-    private fun UserResponse.toUserEntity(): UserEntity {
-        return UserEntity(this.name, this.age, this.eatsCandy)
-    }
-
-    private fun List<ProductResponse>.toProductEntityList(): List<ProductEntity> {
-        return map { ProductEntity(it.name, it.type.toProductType(), it.price) }
-    }
-
-    private fun String.toProductType(): ProductEntity.ProductType {
-        return if(this == "candy") {
-            ProductEntity.ProductType.CANDY
-        } else {
-            ProductEntity.ProductType.SAVORY
+    private fun handleGetProductListUseCase(result: GetProductListUseCase.Result) {
+        when (result) {
+            GetProductListUseCase.Result.Error -> {
+                _productListState.value = ProductListViewState.OtherError
+            }
+            GetProductListUseCase.Result.NoInternetError -> {
+                _productListState.value = ProductListViewState.NoInternetError
+            }
+            is GetProductListUseCase.Result.Success -> {
+                _productListState.value = ProductListViewState.Success(result.productList)
+            }
         }
     }
 }

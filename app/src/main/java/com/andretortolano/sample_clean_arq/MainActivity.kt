@@ -26,8 +26,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.productListState.observe(this, { it?.let { renderProductListState(it) } })
         viewModel.userState.observe(this, { it?.let { renderUserState(it) }})
 
-        viewModel.fetchUser(extraId)
-        viewModel.fetchProducts()
+        viewModel.onCreate(extraId)
     }
 
     private fun renderUserState(state: MainViewModel.UserViewState) {
