@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Sample-Clean-Arq</string>
+
+    <string name="something_went_wrong">Algo deu errado</string>
+    <string name="no_internet">Sem Internet</string>
+    <string name="loading">Carregando</string>
+
+
+    <string name="user_state_title">User State:</string>
+    <string name="products_state_title">Products State:</string>
+
+    <string name="user_state_error_notfound">Usuario nao encontrado</string>
+    <string name="product_state_found">%d produtos</string>
+    <string name="product_adapter_price">R$ %.2f</string>
+
 </resources>
